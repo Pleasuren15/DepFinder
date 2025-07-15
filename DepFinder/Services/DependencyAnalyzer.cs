@@ -1,8 +1,8 @@
-using DepFinder.Domain.Entities;
-using DepFinder.Domain.Interfaces;
+using DepFinder.Entities;
+using DepFinder.Interfaces;
 using System.Reflection;
 
-namespace DepFinder.Infrastructure.Services;
+namespace DepFinder.Services;
 
 public class DependencyAnalyzer : IDependencyAnalyzer
 {
@@ -52,7 +52,7 @@ public class DependencyAnalyzer : IDependencyAnalyzer
 
             foreach (var dependency in directInterfaces)
             {
-                var interfaceType = Type.GetType(dependency.TypeName);
+                var interfaceType = FindTypeInLoadedAssemblies(dependency.Namespace, dependency.Name);
                 if (interfaceType != null)
                 {
                     var implementingTypes = GetImplementingTypes(interfaceType);
@@ -133,5 +133,54 @@ public class DependencyAnalyzer : IDependencyAnalyzer
         var formattedArgs = string.Join(", ", genericArguments.Select(arg => GetFormattedTypeName(arg)));
 
         return $"{genericTypeName}<{formattedArgs}>";
+    }
+
+    private static Type? FindTypeInLoadedAssemblies(string namespaceName, string typeName)
+    {
+        try
+        {
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => !a.IsDynamic && !a.GlobalAssemblyCache)
+                .ToArray();
+
+            foreach (var assembly in assemblies)
+            {
+                try
+                {
+                    var fullTypeName = string.IsNullOrEmpty(namespaceName) ? typeName : $"{namespaceName}.{typeName}";
+                    var type = assembly.GetType(fullTypeName);
+                    if (type != null)
+                        return type;
+                }
+                catch (Exception)
+                {
+                    // Continue to next assembly
+                }
+            }
+
+            // Fallback: search by name only if namespace search fails
+            foreach (var assembly in assemblies)
+            {
+                try
+                {
+                    var types = assembly.GetTypes()
+                        .Where(t => t.Name == typeName && t.IsInterface)
+                        .ToArray();
+                    
+                    if (types.Length > 0)
+                        return types[0];
+                }
+                catch (Exception)
+                {
+                    // Continue to next assembly
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Silently handle exceptions
+        }
+
+        return null;
     }
 }

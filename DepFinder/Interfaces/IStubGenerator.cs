@@ -1,6 +1,6 @@
-using DepFinder.Domain.Entities;
+using DepFinder.Entities;
 
-namespace DepFinder.Domain.Interfaces;
+namespace DepFinder.Interfaces;
 
 public interface IStubGenerator
 {

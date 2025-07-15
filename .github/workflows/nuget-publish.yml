@@ -33,7 +33,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
     
     steps:
     - uses: actions/checkout@v4
@@ -56,8 +56,14 @@ jobs:
     - name: Build
       run: dotnet build DepFinder.sln --no-restore --configuration Release
     
+    - name: Create artifacts directory
+      run: mkdir -p ./artifacts
+    
     - name: Pack
       run: dotnet pack DepFinder/DepFinder.csproj --no-build --configuration Release --output ./artifacts -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+    
+    - name: List artifacts
+      run: ls -la ./artifacts/
     
     - name: Publish to NuGet
       run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

@@ -1,7 +1,7 @@
-using DepFinder.Domain.Entities;
-using DepFinder.Domain.Interfaces;
+using DepFinder.Entities;
+using DepFinder.Interfaces;
 
-namespace DepFinder.Application.Services;
+namespace DepFinder.Services;
 
 public class DependencyAnalysisService
 {

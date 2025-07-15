@@ -1,8 +1,8 @@
-using DepFinder.Domain.Entities;
-using DepFinder.Domain.Interfaces;
+using DepFinder.Entities;
+using DepFinder.Interfaces;
 using System.Text;
 
-namespace DepFinder.Infrastructure.Services;
+namespace DepFinder.Services;
 
 public class StubGenerator : IStubGenerator
 {

@@ -1,6 +1,6 @@
-using DepFinder.Domain.Interfaces;
+using DepFinder.Interfaces;
 
-namespace DepFinder.Infrastructure.Services;
+namespace DepFinder.Services;
 
 public class FileService : IFileService
 {

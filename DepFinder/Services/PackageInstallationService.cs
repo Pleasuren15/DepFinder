@@ -1,6 +1,6 @@
-using DepFinder.Domain.Interfaces;
+using DepFinder.Interfaces;
 
-namespace DepFinder.Application.Services;
+namespace DepFinder.Services;
 
 public class PackageInstallationService
 {

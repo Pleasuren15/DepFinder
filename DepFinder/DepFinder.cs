@@ -1,10 +1,10 @@
-using DepFinder.Application.Services;
-using DepFinder.Domain.Entities;
-using DepFinder.Domain.Interfaces;
-using DepFinder.Infrastructure.Services;
+using DepFinder.Services;
+using DepFinder.Entities;
+using DepFinder.Interfaces;
+using DepFinder.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DepFinder.Service;
+namespace DepFinder;
 
 /// <summary>
 /// Static factory class for easy DepFinder usage without DI setup

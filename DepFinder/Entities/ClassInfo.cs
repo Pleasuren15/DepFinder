@@ -1,4 +1,4 @@
-namespace DepFinder.Domain.Entities;
+namespace DepFinder.Entities;
 
 public class ClassInfo
 {

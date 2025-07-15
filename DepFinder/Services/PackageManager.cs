@@ -1,8 +1,8 @@
-using DepFinder.Domain.Interfaces;
+using DepFinder.Interfaces;
 using System.Diagnostics;
 using System.Xml.Linq;
 
-namespace DepFinder.Infrastructure.Services;
+namespace DepFinder.Services;
 
 public class PackageManager : IPackageManager
 {
