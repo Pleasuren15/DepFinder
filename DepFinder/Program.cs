@@ -123,6 +123,7 @@ static string GenerateClassWithInterfaceProperties(Type sourceClassType, string 
     {
         classBuilder.AppendLine($"using {ns};");
     }
+    classBuilder.AppendLine("using NSubstitute;");
 
     classBuilder.AppendLine();
     classBuilder.AppendLine($"namespace {sourceClassType.Namespace}");
@@ -141,7 +142,7 @@ static string GenerateClassWithInterfaceProperties(Type sourceClassType, string 
             propertyName = propertyName.Substring(0, propertyName.IndexOf('`'));
         }
 
-        classBuilder.AppendLine($"        public {typeName} {propertyName} {{ get; set; }}");
+        classBuilder.AppendLine($"        public {typeName} {propertyName} {{ get; set; }} = Substitute.For<{typeName}>();");
     }
 
     classBuilder.AppendLine("    }");
