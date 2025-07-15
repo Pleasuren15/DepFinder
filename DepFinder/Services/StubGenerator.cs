@@ -41,6 +41,8 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine($"    public class {newClassName}");
         classBuilder.AppendLine("    {");
 
+        var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
         foreach (var dependency in dependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -50,6 +52,10 @@ public class StubGenerator : IStubGenerator
             {
                 propertyName = propertyName.Substring(0, propertyName.IndexOf('`'));
             }
+
+            // Ensure unique property names
+            propertyName = EnsureUniquePropertyName(propertyName, usedPropertyNames);
+            usedPropertyNames.Add(propertyName);
 
             classBuilder.AppendLine($"        public {dependency.TypeName} {propertyName} {{ get; set; }} = Substitute.For<{dependency.TypeName}>();");
         }
@@ -78,6 +84,8 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine($"    public class {stubClassName}");
         classBuilder.AppendLine("    {");
 
+        var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
         foreach (var dependency in classInfo.Dependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -86,6 +94,10 @@ public class StubGenerator : IStubGenerator
             {
                 propertyName = propertyName.Substring(0, propertyName.IndexOf('`'));
             }
+
+            // Ensure unique property names
+            propertyName = EnsureUniquePropertyName(propertyName, usedPropertyNames);
+            usedPropertyNames.Add(propertyName);
 
             classBuilder.AppendLine($"        public {dependency.TypeName} {propertyName} {{ get; set; }} = Substitute.For<{dependency.TypeName}>();");
         }
@@ -141,6 +153,8 @@ public class StubGenerator : IStubGenerator
             classBuilder.AppendLine();
         }
 
+        var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
         foreach (var dependency in dependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -150,6 +164,10 @@ public class StubGenerator : IStubGenerator
             {
                 propertyName = propertyName.Substring(0, propertyName.IndexOf('`'));
             }
+
+            // Ensure unique property names
+            propertyName = EnsureUniquePropertyName(propertyName, usedPropertyNames);
+            usedPropertyNames.Add(propertyName);
 
             classBuilder.AppendLine($"        public {dependency.TypeName} {propertyName} {{ get; set; }} = Substitute.For<{dependency.TypeName}>();");
         }
@@ -275,5 +293,19 @@ public class StubGenerator : IStubGenerator
         // For now, return a default version. In a real implementation,
         // you could query NuGet API to get the latest version
         return "latest";
+    }
+
+    private static string EnsureUniquePropertyName(string baseName, HashSet<string> usedNames)
+    {
+        var propertyName = baseName;
+        var counter = 1;
+
+        while (usedNames.Contains(propertyName))
+        {
+            propertyName = $"{baseName}{counter}";
+            counter++;
+        }
+
+        return propertyName;
     }
 }
