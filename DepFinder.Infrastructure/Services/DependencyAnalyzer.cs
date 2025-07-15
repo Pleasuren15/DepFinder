@@ -32,10 +32,13 @@ public class DependencyAnalyzer : IDependencyAnalyzer
         return interfaceTypes.DistinctBy(x => x.TypeName).ToArray();
     }
 
-    public DependencyInfo[] GetAllInterfacesRecursively(Type classType, HashSet<Type>? visited = null)
+    public DependencyInfo[] GetAllInterfacesRecursively(Type classType)
     {
-        visited ??= new HashSet<Type>();
-        
+        return GetAllInterfacesRecursively(classType, new HashSet<Type>());
+    }
+
+    private DependencyInfo[] GetAllInterfacesRecursively(Type classType, HashSet<Type> visited)
+    {
         if (visited.Contains(classType))
             return Array.Empty<DependencyInfo>();
         

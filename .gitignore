@@ -677,9 +677,6 @@ $RECYCLE.BIN/
 !.vscode/extensions.json
 
 # Project specific
-**/TestFolder/Stubs*.cs
-**/TestFolder/*.cs
-TestFolder/
 appsettings.Development.json
 appsettings.local.json
 *.Development.json
