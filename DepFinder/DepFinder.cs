@@ -48,6 +48,19 @@ public static class DepFinder
     }
 
     /// <summary>
+    /// Generates a stub class with NSubstitute mocks for all dependencies and automatically installs required NuGet packages
+    /// </summary>
+    /// <param name="sourceClassType">The source class type to analyze</param>
+    /// <param name="stubClassName">The name for the generated stub class</param>
+    /// <param name="projectPath">Path to the project file where packages should be installed</param>
+    /// <returns>The generated stub class content</returns>
+    public static async Task<string> GenerateStubClassWithNuGetAsync(Type sourceClassType, string stubClassName, string projectPath)
+    {
+        using var service = Create();
+        return await service.GenerateStubClassWithNuGetAsync(sourceClassType, stubClassName, projectPath);
+    }
+
+    /// <summary>
     /// Generates a stub class and saves it to the specified directory
     /// </summary>
     /// <param name="sourceClassType">The source class type to analyze</param>

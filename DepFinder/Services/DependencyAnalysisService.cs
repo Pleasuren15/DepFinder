@@ -29,6 +29,16 @@ public class DependencyAnalysisService
         return stubContent;
     }
 
+    public async Task<string> GenerateStubsWithNuGetAsync(Type sourceClassType, string outputPath, string projectPath)
+    {
+        var className = $"Stubs{new Random().Next(0, 10000)}";
+        var stubContent = await _stubGenerator.GenerateStubClassWithNuGetPackagesAsync(sourceClassType, className, projectPath);
+        
+        await _fileService.WriteClassToFolderAsync(stubContent, className, outputPath);
+        
+        return stubContent;
+    }
+
     public DependencyInfo[] AnalyzeClassDependencies(Type classType)
     {
         return _dependencyAnalyzer.GetAllInterfacesRecursively(classType);
