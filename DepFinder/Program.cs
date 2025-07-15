@@ -13,6 +13,21 @@ static Type[] GetInterfacesFromClass(Type classType)
     if (!classType.IsClass)
         throw new ArgumentException("Provided type must be a class", nameof(classType));
 
-    return classType.GetInterfaces();
+    var constructors = classType.GetConstructors();
+    var interfaceTypes = new List<Type>();
+
+    foreach (var constructor in constructors)
+    {
+        var parameters = constructor.GetParameters();
+        foreach (var parameter in parameters)
+        {
+            if (parameter.ParameterType.IsInterface)
+            {
+                interfaceTypes.Add(parameter.ParameterType);
+            }
+        }
+    }
+
+    return interfaceTypes.Distinct().ToArray();
 }
 
