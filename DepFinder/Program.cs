@@ -2,7 +2,6 @@ using DepFinder.Application.Services;
 using DepFinder.Domain.Entities;
 using DepFinder.Domain.Interfaces;
 using DepFinder.Infrastructure.Services;
-using DepFinder.Service.Classes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
