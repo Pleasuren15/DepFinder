@@ -1,4 +1,5 @@
 ﻿using DepFinder.Classes;
+using System.Reflection;
 using System.Text;
 
 var className = $"Stubs{new Random().Next(0, 1000)}";
@@ -38,6 +39,69 @@ static Type[] GetInterfacesFromClass(Type classType)
     return interfaceTypes.Distinct().ToArray();
 }
 
+static Type[] GetAllInterfacesRecursively(Type classType, HashSet<Type> visited = null)
+{
+    visited ??= new HashSet<Type>();
+
+    if (visited.Contains(classType))
+        return Array.Empty<Type>();
+
+    visited.Add(classType);
+    var allInterfaces = new List<Type>();
+
+    if (classType.IsClass)
+    {
+        var directInterfaces = GetInterfacesFromClass(classType);
+        allInterfaces.AddRange(directInterfaces);
+
+        foreach (var interfaceType in directInterfaces)
+        {
+            var implementingTypes = GetImplementingTypes(interfaceType);
+            foreach (var implementingType in implementingTypes)
+            {
+                var nestedInterfaces = GetAllInterfacesRecursively(implementingType, visited);
+                allInterfaces.AddRange(nestedInterfaces);
+            }
+        }
+    }
+
+    return allInterfaces.Distinct().ToArray();
+}
+
+static Type[] GetImplementingTypes(Type interfaceType)
+{
+    var implementingTypes = new List<Type>();
+
+    try
+    {
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => !a.IsDynamic && !a.GlobalAssemblyCache)
+            .ToArray();
+
+        foreach (var assembly in assemblies)
+        {
+            try
+            {
+                var types = assembly.GetTypes()
+                    .Where(t => t.IsClass && !t.IsAbstract && interfaceType.IsAssignableFrom(t))
+                    .ToArray();
+
+                implementingTypes.AddRange(types);
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                var loadedTypes = ex.Types.Where(t => t != null && t.IsClass && !t.IsAbstract && interfaceType.IsAssignableFrom(t));
+                implementingTypes.AddRange(loadedTypes);
+            }
+        }
+    }
+    catch (Exception)
+    {
+    }
+
+    return implementingTypes.ToArray();
+}
+
 static string GenerateClassWithInterfaceProperties(Type sourceClassType, string newClassName)
 {
     if (sourceClassType == null)
@@ -46,7 +110,7 @@ static string GenerateClassWithInterfaceProperties(Type sourceClassType, string 
     if (string.IsNullOrWhiteSpace(newClassName))
         throw new ArgumentException("Class name cannot be null or empty", nameof(newClassName));
 
-    var interfaces = GetInterfacesFromClass(sourceClassType);
+    var interfaces = GetAllInterfacesRecursively(sourceClassType);
     var namespaces = interfaces.Select(i => i.Namespace).Where(ns => !string.IsNullOrEmpty(ns)).Distinct().ToList();
 
     var classBuilder = new StringBuilder();
