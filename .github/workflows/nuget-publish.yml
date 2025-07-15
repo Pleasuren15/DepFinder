@@ -33,6 +33,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v4
@@ -42,6 +43,13 @@ jobs:
       with:
         dotnet-version: '9.0.x'
     
+    - name: Generate version
+      id: version
+      run: |
+        VERSION="1.0.${{ github.run_number }}"
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Generated version: $VERSION"
+    
     - name: Restore dependencies
       run: dotnet restore DepFinder/DepFinder.csproj
     
@@ -49,7 +57,7 @@ jobs:
       run: dotnet build DepFinder/DepFinder.csproj --no-restore --configuration Release
     
     - name: Pack
-      run: dotnet pack DepFinder/DepFinder.csproj --no-build --configuration Release --output ./artifacts
+      run: dotnet pack DepFinder/DepFinder.csproj --no-build --configuration Release --output ./artifacts -p:PackageVersion=${{ steps.version.outputs.VERSION }}
     
     - name: Publish to NuGet
       run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
