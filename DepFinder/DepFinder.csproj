@@ -41,10 +41,7 @@
 		<PackageReference Include="NSubstitute" Version="5.3.0" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\DepFinder.Application\DepFinder.Application.csproj" />
-		<ProjectReference Include="..\DepFinder.Infrastructure\DepFinder.Infrastructure.csproj" />
-	</ItemGroup>
+
 
 	<ItemGroup>
 		<None Include="ExampleUsage.md" Pack="true" PackagePath="\" />
