@@ -1,16 +1,16 @@
 ﻿using DepFinder.Classes;
 using System.Text;
 
-var classResults = GenerateClassWithInterfaceProperties(typeof(ClassA), "Stubs");
+var className = $"Stubs{new Random().Next(0, 1000)}";
+var classResults = GenerateClassWithInterfaceProperties(typeof(ClassA), className);
 Console.WriteLine(classResults);
 
-var currentDirectory = Directory.GetParent(Directory.GetCurrentDirectory())
+var currentDirectory = Directory.GetParent(Directory.GetCurrentDirectory())!
                                     .Parent!.Parent;
 
 Console.WriteLine($"Current Directory: {currentDirectory}");
 
-var random = new Random().Next(0, 10000);
-await WriteClassToFolder(classResults, $"Stubs {random}", $"{currentDirectory}//TestFolder");
+await WriteClassToFolder(classResults, className, $"{currentDirectory}//TestFolder");
 
 static Type[] GetInterfacesFromClass(Type classType)
 {
