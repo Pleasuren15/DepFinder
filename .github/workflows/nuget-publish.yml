@@ -21,13 +21,13 @@ jobs:
         dotnet-version: '9.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore DepFinder/DepFinder.csproj
+      run: dotnet restore DepFinder.sln
     
     - name: Build
-      run: dotnet build DepFinder/DepFinder.csproj --no-restore --configuration Release
+      run: dotnet build DepFinder.sln --no-restore --configuration Release
     
     - name: Test
-      run: dotnet test DepFinder/DepFinder.csproj --no-build --configuration Release --verbosity normal
+      run: dotnet test DepFinder.sln --no-build --configuration Release --verbosity normal
       continue-on-error: true
   
   publish:
@@ -51,13 +51,13 @@ jobs:
         echo "Generated version: $VERSION"
     
     - name: Restore dependencies
-      run: dotnet restore DepFinder/DepFinder.csproj
+      run: dotnet restore DepFinder.sln
     
     - name: Build
-      run: dotnet build DepFinder/DepFinder.csproj --no-restore --configuration Release
+      run: dotnet build DepFinder.sln --no-restore --configuration Release
     
     - name: Pack
-      run: dotnet pack DepFinder/DepFinder.csproj --no-build --configuration Release --output ./artifacts -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+      run: dotnet pack DepFinder.Service/DepFinder.Service.csproj --no-build --configuration Release --output ./artifacts -p:PackageVersion=${{ steps.version.outputs.VERSION }}
     
     - name: Publish to NuGet
       run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

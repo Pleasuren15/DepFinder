@@ -1,4 +1,4 @@
-﻿namespace DepFinder.Interfaces;
+﻿namespace DepFinder.Service.Interfaces;
 
 public interface IInterfaceA { }
 public interface IInterfaceB { }
