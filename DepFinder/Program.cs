@@ -1,6 +1,8 @@
 ﻿using DepFinder.Classes;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
+using System.Xml.Linq;
 
 var className = $"Stubs{new Random().Next(0, 1000)}";
 var classResults = GenerateClassWithInterfaceProperties(typeof(ClassA), className);
@@ -10,6 +12,8 @@ var currentDirectory = Directory.GetParent(Directory.GetCurrentDirectory())!
                                     .Parent!.Parent;
 
 Console.WriteLine($"Current Directory: {currentDirectory}");
+
+await InstallNSubstituteAsync($"{currentDirectory}//DepFinder.csproj");
 
 await WriteClassToFolder(classResults, className, $"{currentDirectory}//TestFolder");
 
@@ -180,5 +184,67 @@ static async Task WriteClassToFolder(string classContent, string className, stri
     await File.WriteAllTextAsync(filePath, classContent);
 
     Console.WriteLine($"Class {className} written to: {filePath}");
+}
+
+static async Task InstallNSubstituteAsync(string projectPath)
+{
+    Console.WriteLine();
+    if (string.IsNullOrWhiteSpace(projectPath))
+        throw new ArgumentException("Project path cannot be null or empty", nameof(projectPath));
+
+    if (!File.Exists(projectPath))
+        throw new FileNotFoundException($"Project file not found: {projectPath}");
+
+    try
+    {
+        var projectContent = await File.ReadAllTextAsync(projectPath);
+        var doc = XDocument.Parse(projectContent);
+
+        var hasNSubstitute = doc.Descendants("PackageReference")
+            .Any(x => x.Attribute("Include")?.Value.Equals("NSubstitute", StringComparison.OrdinalIgnoreCase) == true);
+
+        if (hasNSubstitute)
+        {
+            Console.WriteLine("NSubstitute package already exists in the project. Skipping installation.");
+            return;
+        }
+
+        Console.WriteLine("NSubstitute package not found. Installing latest version...");
+
+        var projectDirectory = Path.GetDirectoryName(projectPath);
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = "add package NSubstitute",
+            WorkingDirectory = projectDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = processStartInfo };
+        process.Start();
+
+        var output = await process.StandardOutput.ReadToEndAsync();
+        var error = await process.StandardError.ReadToEndAsync();
+
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode == 0)
+        {
+            Console.WriteLine("NSubstitute package installed successfully.");
+            Console.WriteLine(output);
+        }
+        else
+        {
+            Console.WriteLine($"Failed to install NSubstitute package. Exit code: {process.ExitCode}");
+            Console.WriteLine($"Error: {error}");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error installing NSubstitute: {ex.Message}");
+    }
 }
 
