@@ -21,7 +21,7 @@ public class DependencyAnalysisService
 
     public async Task<string> GenerateStubsAsync(Type sourceClassType, string outputPath)
     {
-        var className = $"Stubs{new Random().Next(0, 10000)}";
+        var className = $"Stubs";
         var stubContent = _stubGenerator.GenerateClassWithInterfaceProperties(sourceClassType, className);
         
         await _fileService.WriteClassToFolderAsync(stubContent, className, outputPath);
@@ -31,7 +31,7 @@ public class DependencyAnalysisService
 
     public async Task<string> GenerateStubsWithNuGetAsync(Type sourceClassType, string outputPath, string projectPath)
     {
-        var className = $"Stubs{new Random().Next(0, 10000)}";
+        var className = $"Stubs";
         var stubContent = await _stubGenerator.GenerateStubClassWithNuGetPackagesAsync(sourceClassType, className, projectPath);
         
         await _fileService.WriteClassToFolderAsync(stubContent, className, outputPath);

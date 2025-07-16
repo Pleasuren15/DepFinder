@@ -24,4 +24,8 @@
     <ProjectReference Include="..\DepFinder\DepFinder.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Testes\" />
+  </ItemGroup>
+
 </Project>

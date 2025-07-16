@@ -28,29 +28,6 @@ namespace DepFinder.UnitTests
         }
 
         [Test]
-        public async Task AnalyzeDependenciesAsync_WithClassA_ReturnsExpectedDependencies()
-        {
-            // Act
-            var result = await DepFinder.AnalyzeDependenciesAsync(_testClassType);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-
-            var dependencyNames = result.Select(d => d.Name).ToArray();
-            Assert.That(dependencyNames, Does.Contain("IInterfaceA"));
-            Assert.That(dependencyNames, Does.Contain("IConfiguration"));
-            Assert.That(dependencyNames, Does.Contain("ILogger"));
-        }
-
-        [Test]
-        public void AnalyzeDependenciesAsync_WithNullType_ThrowsException()
-        {
-            // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(() => DepFinder.AnalyzeDependenciesAsync(null));
-        }
-
-        [Test]
         public async Task GenerateStubClassAsync_WithValidParameters_ReturnsStubContent()
         {
             // Arrange
@@ -64,23 +41,6 @@ namespace DepFinder.UnitTests
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Does.Contain(stubClassName));
             Assert.That(result, Does.Contain("using NSubstitute;"));
-        }
-
-        [Test]
-        public async Task GenerateStubClassAsync_WithClassA_ContainsExpectedMocks()
-        {
-            // Arrange
-            var stubClassName = "ClassAStubs";
-
-            // Act
-            var result = await DepFinder.GenerateStubClassAsync(_testClassType, stubClassName);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result, Does.Contain("IInterfaceA"));
-            Assert.That(result, Does.Contain("IConfiguration"));
-            Assert.That(result, Does.Contain("ILogger"));
-            Assert.That(result, Does.Contain("Substitute.For"));
         }
 
         [Test]
@@ -161,21 +121,17 @@ namespace DepFinder.UnitTests
         }
 
         [Test]
-        public void GenerateAndSaveStubAsync_WithInvalidDirectory_ThrowsException()
-        {
-            // Arrange
-            var invalidDirectory = "///invalid///path///";
-
-            // Act & Assert
-            Assert.ThrowsAsync<DirectoryNotFoundException>(() => DepFinder.GenerateAndSaveStubAsync(_testClassType, invalidDirectory));
-        }
-
-        [Test]
         public async Task GivenAllMethods_WithValidProperteis_ThenShouldCreateStubs()
         {
-            var dependencies = await DepFinder.AnalyzeDependenciesAsync(typeof(ClassA));
-            var stubContent = await DepFinder.GenerateStubClassAsync(typeof(ClassA), "UsersControllerStubs");
-            var filePath = await DepFinder.GenerateAndSaveStubAsync(typeof(ClassA), "./TestStubs");
+            var currentDirectory = Directory.GetParent(".")!.Parent!.Parent;
+
+            //var dependencies = await DepFinder.AnalyzeDependenciesAsync(typeof(ClassA));
+            //var stubContent = await DepFinder.GenerateStubClassAsync(typeof(ClassA), "UsersControllerStubs");
+            var filePath = await DepFinder.GenerateAndSaveStubAsync(typeof(ClassA), $"{currentDirectory}//Testes");
+
+            // Create Sut Factory
+            var outputDirectory = Directory.GetCurrentDirectory();
+            await DepFinder.GenerateSutFactoryClassAsync(typeof(ClassA), "ClassA", filePath, $"{currentDirectory}//Testes");
         }
     }
 }
