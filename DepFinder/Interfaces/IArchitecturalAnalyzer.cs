@@ -8,14 +8,16 @@ namespace DepFinder.Interfaces;
 public interface IArchitecturalAnalyzer
 {
     /// <summary>
-    /// Analyzes the application architecture and returns a structured representation
+    /// Analyzes the architecture for a specific class/controller and returns a structured representation
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>Complete architectural flow information</returns>
-    ArchitecturalFlow AnalyzeArchitecture();
+    ArchitecturalFlow AnalyzeArchitecture(Type targetClass);
 
     /// <summary>
-    /// Generates a visual ASCII diagram of the architecture
+    /// Generates a visual ASCII diagram of the architecture for a specific class/controller
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>ASCII art representation of the architecture</returns>
-    string GenerateArchitecturalDiagram();
+    string GenerateArchitecturalDiagram(Type targetClass);
 }

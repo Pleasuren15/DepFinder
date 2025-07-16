@@ -62,34 +62,37 @@ public static class DepFinder
     }
 
     /// <summary>
-    /// Analyzes the application architecture and returns a structured representation
+    /// Analyzes the architecture for a specific class/controller and returns a structured representation
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>Complete architectural flow information</returns>
-    public static async Task<ArchitecturalFlow> AnalyzeArchitectureAsync()
+    public static async Task<ArchitecturalFlow> AnalyzeArchitectureAsync(Type targetClass)
     {
         using var service = Create();
-        return await service.AnalyzeArchitectureAsync();
+        return await service.AnalyzeArchitectureAsync(targetClass);
     }
 
     /// <summary>
-    /// Generates a visual ASCII diagram of the application architecture
+    /// Generates a visual ASCII diagram of the architecture for a specific class/controller
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>ASCII art representation of the architecture</returns>
-    public static async Task<string> GenerateArchitecturalDiagramAsync()
+    public static async Task<string> GenerateArchitecturalDiagramAsync(Type targetClass)
     {
         using var service = Create();
-        return await service.GenerateArchitecturalDiagramAsync();
+        return await service.GenerateArchitecturalDiagramAsync(targetClass);
     }
 
     /// <summary>
-    /// Generates and saves an architectural diagram to a file
+    /// Generates and saves an architectural diagram to a file for a specific class/controller
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <param name="outputPath">Path where the diagram file should be saved</param>
     /// <returns>Path to the saved diagram file</returns>
-    public static async Task<string> GenerateAndSaveArchitecturalDiagramAsync(string outputPath)
+    public static async Task<string> GenerateAndSaveArchitecturalDiagramAsync(Type targetClass, string outputPath)
     {
         using var service = Create();
-        return await service.GenerateAndSaveArchitecturalDiagramAsync(outputPath);
+        return await service.GenerateAndSaveArchitecturalDiagramAsync(targetClass, outputPath);
     }
 }
 

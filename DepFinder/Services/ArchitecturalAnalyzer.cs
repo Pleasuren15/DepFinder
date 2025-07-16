@@ -6,7 +6,7 @@ using System.Text;
 namespace DepFinder.Services;
 
 /// <summary>
-/// Analyzes the application architecture and generates visual flow diagrams
+/// Analyzes the architecture for any given class/controller and generates visual flow diagrams
 /// </summary>
 public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
 {
@@ -18,40 +18,55 @@ public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
     }
 
     /// <summary>
-    /// Analyzes the application architecture and returns a structured representation
+    /// Analyzes the architecture for a specific class/controller and returns a structured representation
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>Complete architectural flow information</returns>
-    public ArchitecturalFlow AnalyzeArchitecture()
+    public ArchitecturalFlow AnalyzeArchitecture(Type targetClass)
     {
+        if (targetClass == null)
+            throw new ArgumentNullException(nameof(targetClass));
+
         var flow = new ArchitecturalFlow();
         
-        // Analyze layers from top to bottom
-        flow.Layers.Add(CreateUserInterfaceLayer());
-        flow.Layers.Add(CreateServiceOrchestrationLayer());
-        flow.Layers.Add(CreateBusinessLogicLayer());
-        flow.Layers.Add(CreateCoreServicesLayer());
-        flow.Layers.Add(CreateDataAccessLayer());
+        // Get all dependencies for the target class
+        var allDependencies = _dependencyAnalyzer.GetAllInterfacesRecursively(targetClass);
+        var constructorDependencies = GetConstructorDependencies(targetClass);
         
-        // Analyze data flow
-        flow.DataFlow = CreateDataFlowSteps();
+        // Analyze the dependency chain to create layers
+        var dependencyGraph = BuildDependencyGraph(targetClass, allDependencies);
         
-        // Add key features and technical highlights
-        flow.KeyFeatures = GetKeyFeatures();
-        flow.TechnicalHighlights = GetTechnicalHighlights();
+        // Create layers based on the dependency analysis
+        flow.Layers = CreateLayersFromDependencyGraph(targetClass, dependencyGraph, allDependencies);
+        
+        // Create data flow based on the target class
+        flow.DataFlow = CreateDataFlowForClass(targetClass, constructorDependencies);
+        
+        // Add generic key features and technical highlights
+        flow.KeyFeatures = GetGenericKeyFeatures(targetClass);
+        flow.TechnicalHighlights = GetGenericTechnicalHighlights(targetClass, allDependencies);
         
         return flow;
     }
 
     /// <summary>
-    /// Generates a visual ASCII diagram of the architecture
+    /// Generates a visual ASCII diagram of the architecture for a specific class/controller
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>ASCII art representation of the architecture</returns>
-    public string GenerateArchitecturalDiagram()
+    public string GenerateArchitecturalDiagram(Type targetClass)
     {
-        var flow = AnalyzeArchitecture();
+        if (targetClass == null)
+            throw new ArgumentNullException(nameof(targetClass));
+
+        var flow = AnalyzeArchitecture(targetClass);
         var diagram = new StringBuilder();
         
-        diagram.AppendLine("# 🏗️ DepFinder Application Architecture Flow");
+        diagram.AppendLine($"# 🏗️ {targetClass.Name} Architecture Flow");
+        diagram.AppendLine();
+        diagram.AppendLine($"**Target Class**: `{targetClass.FullName}`");
+        diagram.AppendLine($"**Namespace**: `{targetClass.Namespace}`");
+        diagram.AppendLine($"**Assembly**: `{targetClass.Assembly.GetName().Name}`");
         diagram.AppendLine();
         
         // Generate layer diagrams
@@ -71,7 +86,7 @@ public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
         diagram.AppendLine("## 📈 **Data Flow Visualization**");
         diagram.AppendLine();
         diagram.AppendLine("```");
-        diagram.AppendLine("🎯 USER REQUEST");
+        diagram.AppendLine($"🎯 {targetClass.Name.ToUpper()} REQUEST");
         diagram.AppendLine("    │");
         diagram.AppendLine("    ▼");
         
@@ -82,7 +97,7 @@ public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
         
         diagram.AppendLine("    │");
         diagram.AppendLine("    ▼");
-        diagram.AppendLine("🎯 GENERATED OUTPUT: Stubs.cs with NSubstitute mocks");
+        diagram.AppendLine($"🎯 {targetClass.Name.ToUpper()} RESPONSE/OUTPUT");
         diagram.AppendLine("```");
         diagram.AppendLine();
         
@@ -105,450 +120,413 @@ public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
         return diagram.ToString();
     }
 
-    private ArchitecturalLayer CreateUserInterfaceLayer()
+    private Dictionary<string, List<string>> BuildDependencyGraph(Type targetClass, DependencyInfo[] allDependencies)
     {
-        return new ArchitecturalLayer
+        var graph = new Dictionary<string, List<string>>();
+        
+        // Add the target class as the root
+        var targetClassDeps = GetConstructorDependencies(targetClass);
+        graph[targetClass.Name] = targetClassDeps.Select(d => d.Name).ToList();
+        
+        // Build dependency relationships for all discovered dependencies
+        foreach (var dependency in allDependencies)
         {
-            Name = "User Interface Layer",
-            Description = "Entry points for user interaction",
-            Icon = "📱",
+            try
+            {
+                var depType = FindTypeByName(dependency.Name, dependency.Namespace);
+                if (depType != null && !depType.IsInterface)
+                {
+                    var depDependencies = GetConstructorDependencies(depType);
+                    graph[dependency.Name] = depDependencies.Select(d => d.Name).ToList();
+                }
+                else
+                {
+                    graph[dependency.Name] = new List<string>();
+                }
+            }
+            catch
+            {
+                graph[dependency.Name] = new List<string>();
+            }
+        }
+        
+        return graph;
+    }
+
+    private List<ArchitecturalLayer> CreateLayersFromDependencyGraph(Type targetClass, Dictionary<string, List<string>> dependencyGraph, DependencyInfo[] allDependencies)
+    {
+        var layers = new List<ArchitecturalLayer>();
+        
+        // Layer 1: Entry Point (Target Class)
+        layers.Add(new ArchitecturalLayer
+        {
+            Name = "Entry Point Layer",
+            Description = $"Entry point for {targetClass.Name}",
+            Icon = "🎯",
             Order = 1,
             Components = new List<ArchitecturalComponent>
             {
-                new ArchitecturalComponent
-                {
-                    Name = "DepFinder Static Factory",
-                    Type = "Static Class",
-                    Implementation = "DepFinder",
-                    Methods = new List<string>
-                    {
-                        "Create()",
-                        "GenerateStubClassAsync()",
-                        "GenerateAndSaveStubAsync()",
-                        "GenerateSutFactoryClassAsync()"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Zero-configuration API access",
-                        "Service container creation",
-                        "Simplified method calls"
-                    },
-                    Description = "Static factory providing easy access to DepFinder functionality"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "DI Container Integration",
-                    Type = "Extension Methods",
-                    Implementation = "ServiceCollectionExtensions",
-                    Methods = new List<string>
-                    {
-                        "AddDepFinder()"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Service registration",
-                        "Lifetime management",
-                        "Dependency configuration"
-                    },
-                    Description = "Dependency injection setup for enterprise applications"
-                }
+                CreateComponentFromType(targetClass, "Entry Point")
             }
-        };
-    }
-
-    private ArchitecturalLayer CreateServiceOrchestrationLayer()
-    {
-        return new ArchitecturalLayer
+        });
+        
+        // Layer 2: Direct Dependencies
+        var directDependencies = GetConstructorDependencies(targetClass);
+        if (directDependencies.Any())
         {
-            Name = "Service Orchestration Layer",
-            Description = "Main service coordination and public API",
-            Icon = "🎛️",
-            Order = 2,
-            Components = new List<ArchitecturalComponent>
+            layers.Add(new ArchitecturalLayer
             {
-                new ArchitecturalComponent
-                {
-                    Name = "DepFinderService",
-                    Type = "Service",
-                    Implementation = "DepFinderService",
-                    Methods = new List<string>
-                    {
-                        "GenerateStubClassAsync()",
-                        "GenerateAndSaveStubAsync()",
-                        "GenerateSutFactoryClassAsync()",
-                        "EnsureNSubstituteInstalledAsync()",
-                        "AnalyzeDependenciesAsync()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "IDependencyAnalyzer",
-                        "IStubGenerator",
-                        "IFileService",
-                        "IPackageManager",
-                        "DependencyAnalysisService",
-                        "PackageInstallationService"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Public API orchestration",
-                        "Service coordination",
-                        "Resource management"
-                    },
-                    Description = "Central service that orchestrates all DepFinder operations"
-                }
-            }
-        };
-    }
-
-    private ArchitecturalLayer CreateBusinessLogicLayer()
-    {
-        return new ArchitecturalLayer
-        {
-            Name = "Business Logic Layer",
-            Description = "Core business processes and workflows",
-            Icon = "🏢",
-            Order = 3,
-            Components = new List<ArchitecturalComponent>
-            {
-                new ArchitecturalComponent
-                {
-                    Name = "DependencyAnalysisService",
-                    Type = "Service",
-                    Implementation = "DependencyAnalysisService",
-                    Methods = new List<string>
-                    {
-                        "GenerateStubsAsync()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "IStubGenerator",
-                        "IFileService"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Stub generation workflow",
-                        "File output coordination"
-                    },
-                    Description = "Orchestrates dependency analysis and stub generation"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "PackageInstallationService",
-                    Type = "Service",
-                    Implementation = "PackageInstallationService",
-                    Methods = new List<string>
-                    {
-                        "EnsureNSubstituteInstalledAsync()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "IPackageManager"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Package management operations",
-                        "NSubstitute installation"
-                    },
-                    Description = "Handles NuGet package installation workflows"
-                }
-            }
-        };
-    }
-
-    private ArchitecturalLayer CreateCoreServicesLayer()
-    {
-        return new ArchitecturalLayer
-        {
-            Name = "Core Services Layer",
-            Description = "Core domain services and interfaces",
-            Icon = "⚙️",
-            Order = 4,
-            Components = new List<ArchitecturalComponent>
-            {
-                new ArchitecturalComponent
-                {
-                    Name = "IDependencyAnalyzer",
-                    Type = "Interface",
-                    Implementation = "DependencyAnalyzer",
-                    Methods = new List<string>
-                    {
-                        "GetAllInterfacesRecursively()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "System.Reflection"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Type analysis",
-                        "Dependency discovery",
-                        "Recursive interface detection"
-                    },
-                    Description = "Analyzes class dependencies using reflection"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "IStubGenerator",
-                    Type = "Interface",
-                    Implementation = "StubGenerator",
-                    Methods = new List<string>
-                    {
-                        "GenerateClassWithInterfaceProperties()",
-                        "GenerateSutFactoryClass()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "IDependencyAnalyzer",
-                        "IPackageManager"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "C# code generation",
-                        "NSubstitute integration",
-                        "Factory class creation"
-                    },
-                    Description = "Generates stub classes and SUT factories"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "IFileService",
-                    Type = "Interface",
-                    Implementation = "FileService",
-                    Methods = new List<string>
-                    {
-                        "WriteClassToFolderAsync()",
-                        "ReadFileAsync()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "System.IO"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "File system operations",
-                        "Directory management",
-                        "Code file writing"
-                    },
-                    Description = "Handles all file system interactions"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "IPackageManager",
-                    Type = "Interface",
-                    Implementation = "PackageManager",
-                    Methods = new List<string>
-                    {
-                        "InstallPackageAsync()",
-                        "IsPackageInstalledAsync()"
-                    },
-                    Dependencies = new List<string>
-                    {
-                        "System.Diagnostics",
-                        "System.Xml.Linq"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "NuGet package operations",
-                        "Project file parsing",
-                        "CLI integration"
-                    },
-                    Description = "Manages NuGet package installation and validation"
-                }
-            }
-        };
-    }
-
-    private ArchitecturalLayer CreateDataAccessLayer()
-    {
-        return new ArchitecturalLayer
-        {
-            Name = "Data Access Layer",
-            Description = "External system interactions and data access",
-            Icon = "📊",
-            Order = 5,
-            Components = new List<ArchitecturalComponent>
-            {
-                new ArchitecturalComponent
-                {
-                    Name = "File System",
-                    Type = "External System",
-                    Implementation = "System.IO",
-                    Methods = new List<string>
-                    {
-                        "Directory.CreateDirectory()",
-                        "File.WriteAllText()",
-                        "File.ReadAllText()"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Directory creation",
-                        "File operations",
-                        "Path management"
-                    },
-                    Description = "File system operations for stub generation"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "Reflection API",
-                    Type = "External System",
-                    Implementation = "System.Reflection",
-                    Methods = new List<string>
-                    {
-                        "Type.GetConstructors()",
-                        "ParameterInfo.ParameterType",
-                        "Assembly.GetTypes()"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Type inspection",
-                        "Constructor analysis",
-                        "Assembly loading"
-                    },
-                    Description = "Reflection-based type analysis and discovery"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "Process Execution",
-                    Type = "External System",
-                    Implementation = "System.Diagnostics",
-                    Methods = new List<string>
-                    {
-                        "Process.Start()",
-                        "ProcessStartInfo"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "CLI command execution",
-                        "dotnet operations",
-                        "Process management"
-                    },
-                    Description = "External process execution for dotnet CLI"
-                },
-                new ArchitecturalComponent
-                {
-                    Name = "XML Processing",
-                    Type = "External System",
-                    Implementation = "System.Xml.Linq",
-                    Methods = new List<string>
-                    {
-                        "XDocument.Load()",
-                        "XElement.Descendants()"
-                    },
-                    Responsibilities = new List<string>
-                    {
-                        "Project file parsing",
-                        "Package reference extraction",
-                        "XML analysis"
-                    },
-                    Description = "XML processing for project file analysis"
-                }
-            }
-        };
-    }
-
-    private List<DataFlowStep> CreateDataFlowSteps()
-    {
-        return new List<DataFlowStep>
-        {
-            new DataFlowStep
-            {
-                Layer = "Entry Point",
-                Component = "DepFinder",
-                Method = "GenerateAndSaveStubAsync",
-                Description = "User initiates stub generation",
-                Order = 1,
-                SubSteps = new List<string>
-                {
-                    "User calls DepFinder.GenerateAndSaveStubAsync(typeof(MyClass), \"output/\")"
-                }
-            },
-            new DataFlowStep
-            {
-                Layer = "Service Orchestration",
-                Component = "DepFinderService",
-                Method = "GenerateAndSaveStubAsync",
-                Description = "Service orchestrates the operation",
+                Name = "Direct Dependencies Layer",
+                Description = $"Direct dependencies of {targetClass.Name}",
+                Icon = "🔗",
                 Order = 2,
-                SubSteps = new List<string>
-                {
-                    "DepFinderService.GenerateAndSaveStubAsync()",
-                    "├─> DependencyAnalysisService.GenerateStubsAsync()",
-                    "└─> FileService.WriteClassToFolderAsync()"
-                }
-            },
-            new DataFlowStep
+                Components = directDependencies.Select(d => CreateComponentFromDependencyInfo(d, "Direct Dependency")).ToList()
+            });
+        }
+        
+        // Layer 3: Service Dependencies
+        var serviceDependencies = allDependencies.Where(d => 
+            !directDependencies.Any(dd => dd.Name == d.Name) && 
+            (d.Name.Contains("Service") || d.Name.Contains("Manager") || d.Name.Contains("Provider"))
+        ).ToList();
+        
+        if (serviceDependencies.Any())
+        {
+            layers.Add(new ArchitecturalLayer
             {
-                Layer = "Business Logic",
-                Component = "DependencyAnalysisService",
-                Method = "GenerateStubsAsync",
-                Description = "Business logic coordinates stub generation",
+                Name = "Service Layer",
+                Description = "Business logic and service dependencies",
+                Icon = "⚙️",
                 Order = 3,
-                SubSteps = new List<string>
-                {
-                    "DependencyAnalysisService:",
-                    "├─> StubGenerator.GenerateClassWithInterfaceProperties()",
-                    "└─> FileService.WriteClassToFolderAsync()"
-                }
-            },
-            new DataFlowStep
+                Components = serviceDependencies.Select(d => CreateComponentFromDependencyInfo(d, "Service")).ToList()
+            });
+        }
+        
+        // Layer 4: Data Access Dependencies
+        var dataAccessDependencies = allDependencies.Where(d => 
+            !directDependencies.Any(dd => dd.Name == d.Name) && 
+            !serviceDependencies.Any(sd => sd.Name == d.Name) &&
+            (d.Name.Contains("Repository") || d.Name.Contains("Context") || d.Name.Contains("Data") || d.Name.Contains("Store"))
+        ).ToList();
+        
+        if (dataAccessDependencies.Any())
+        {
+            layers.Add(new ArchitecturalLayer
             {
-                Layer = "Core Services",
-                Component = "StubGenerator & FileService",
-                Method = "GenerateClassWithInterfaceProperties",
-                Description = "Core services perform the actual work",
+                Name = "Data Access Layer",
+                Description = "Data access and persistence dependencies",
+                Icon = "📊",
                 Order = 4,
-                SubSteps = new List<string>
-                {
-                    "StubGenerator:",
-                    "├─> DependencyAnalyzer.GetAllInterfacesRecursively()",
-                    "└─> [Generate C# Code with NSubstitute]",
-                    "",
-                    "FileService:",
-                    "└─> [Write generated code to file system]"
-                }
-            },
-            new DataFlowStep
+                Components = dataAccessDependencies.Select(d => CreateComponentFromDependencyInfo(d, "Data Access")).ToList()
+            });
+        }
+        
+        // Layer 5: Other Dependencies
+        var otherDependencies = allDependencies.Where(d => 
+            !directDependencies.Any(dd => dd.Name == d.Name) && 
+            !serviceDependencies.Any(sd => sd.Name == d.Name) &&
+            !dataAccessDependencies.Any(dad => dad.Name == d.Name)
+        ).ToList();
+        
+        if (otherDependencies.Any())
+        {
+            layers.Add(new ArchitecturalLayer
             {
-                Layer = "Data Access",
-                Component = "Reflection API & File System",
-                Method = "External System Calls",
-                Description = "External systems perform the actual operations",
+                Name = "Infrastructure Layer",
+                Description = "Supporting infrastructure and utility dependencies",
+                Icon = "🛠️",
                 Order = 5,
-                SubSteps = new List<string>
+                Components = otherDependencies.Select(d => CreateComponentFromDependencyInfo(d, "Infrastructure")).ToList()
+            });
+        }
+        
+        return layers;
+    }
+
+    private ArchitecturalComponent CreateComponentFromType(Type type, string componentType)
+    {
+        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName && !m.IsConstructor)
+            .Select(m => m.Name)
+            .Take(5)
+            .ToList();
+        
+        var dependencies = GetConstructorDependencies(type)
+            .Select(d => d.Name)
+            .ToList();
+        
+        return new ArchitecturalComponent
+        {
+            Name = type.Name,
+            Type = componentType,
+            Implementation = type.FullName ?? type.Name,
+            Methods = methods,
+            Dependencies = dependencies,
+            Responsibilities = InferResponsibilities(type),
+            Description = $"{componentType}: {type.Name}"
+        };
+    }
+
+    private ArchitecturalComponent CreateComponentFromDependencyInfo(DependencyInfo dependency, string componentType)
+    {
+        var dependencies = new List<string>();
+        
+        // Try to find implementation and get its dependencies
+        try
+        {
+            var implType = FindTypeByName(dependency.Name, dependency.Namespace);
+            if (implType != null && !implType.IsInterface)
+            {
+                dependencies = GetConstructorDependencies(implType).Select(d => d.Name).ToList();
+            }
+        }
+        catch
+        {
+            // If we can't find the implementation, that's okay
+        }
+        
+        return new ArchitecturalComponent
+        {
+            Name = dependency.Name,
+            Type = componentType,
+            Implementation = dependency.TypeName,
+            Methods = new List<string>(), // We don't have method info for dependencies
+            Dependencies = dependencies,
+            Responsibilities = InferResponsibilitiesFromName(dependency.Name),
+            Description = $"{componentType}: {dependency.Name}"
+        };
+    }
+
+    private List<string> InferResponsibilities(Type type)
+    {
+        var responsibilities = new List<string>();
+        var name = type.Name;
+        
+        if (name.Contains("Controller"))
+            responsibilities.Add("Handle HTTP requests and responses");
+        if (name.Contains("Service"))
+            responsibilities.Add("Business logic processing");
+        if (name.Contains("Repository"))
+            responsibilities.Add("Data access and persistence");
+        if (name.Contains("Manager"))
+            responsibilities.Add("Resource management");
+        if (name.Contains("Provider"))
+            responsibilities.Add("Provide specific functionality");
+        if (name.Contains("Factory"))
+            responsibilities.Add("Object creation and initialization");
+        if (name.Contains("Validator"))
+            responsibilities.Add("Data validation");
+        if (name.Contains("Mapper"))
+            responsibilities.Add("Object mapping and transformation");
+        
+        if (!responsibilities.Any())
+            responsibilities.Add("Core functionality");
+        
+        return responsibilities;
+    }
+
+    private List<string> InferResponsibilitiesFromName(string name)
+    {
+        var responsibilities = new List<string>();
+        
+        if (name.Contains("Controller"))
+            responsibilities.Add("Handle requests");
+        else if (name.Contains("Service"))
+            responsibilities.Add("Business logic");
+        else if (name.Contains("Repository"))
+            responsibilities.Add("Data access");
+        else if (name.Contains("Manager"))
+            responsibilities.Add("Resource management");
+        else if (name.Contains("Provider"))
+            responsibilities.Add("Provide functionality");
+        else if (name.Contains("Factory"))
+            responsibilities.Add("Object creation");
+        else if (name.Contains("Validator"))
+            responsibilities.Add("Validation");
+        else if (name.Contains("Mapper"))
+            responsibilities.Add("Object mapping");
+        else
+            responsibilities.Add("Interface contract");
+        
+        return responsibilities;
+    }
+
+    private List<DataFlowStep> CreateDataFlowForClass(Type targetClass, DependencyInfo[] constructorDependencies)
+    {
+        var steps = new List<DataFlowStep>();
+        
+        // Step 1: Entry point
+        steps.Add(new DataFlowStep
+        {
+            Layer = "Entry Point",
+            Component = targetClass.Name,
+            Method = "Constructor/Method Call",
+            Description = $"Request enters {targetClass.Name}",
+            Order = 1,
+            SubSteps = new List<string>
+            {
+                $"User/System calls {targetClass.Name}",
+                $"Constructor initializes with {constructorDependencies.Length} dependencies"
+            }
+        });
+        
+        // Step 2: Direct dependencies
+        if (constructorDependencies.Any())
+        {
+            steps.Add(new DataFlowStep
+            {
+                Layer = "Direct Dependencies",
+                Component = "Constructor Dependencies",
+                Method = "Dependency Resolution",
+                Description = "Resolve constructor dependencies",
+                Order = 2,
+                SubSteps = constructorDependencies.Select(d => $"├─> {d.Name}").ToList()
+            });
+        }
+        
+        // Step 3: Method execution
+        var publicMethods = targetClass.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName && !m.IsConstructor)
+            .Take(3)
+            .ToList();
+        
+        if (publicMethods.Any())
+        {
+            steps.Add(new DataFlowStep
+            {
+                Layer = "Method Execution",
+                Component = targetClass.Name,
+                Method = "Public Methods",
+                Description = "Execute business logic",
+                Order = 3,
+                SubSteps = publicMethods.Select(m => $"├─> {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})").ToList()
+            });
+        }
+        
+        return steps;
+    }
+
+    private List<string> GetGenericKeyFeatures(Type targetClass)
+    {
+        var features = new List<string>();
+        
+        if (targetClass.GetInterfaces().Any())
+            features.Add("**🎯 Interface Implementation**: Follows contract-based design");
+        
+        var constructorDependencies = GetConstructorDependencies(targetClass);
+        if (constructorDependencies.Any())
+            features.Add("**💉 Dependency Injection**: Constructor injection pattern");
+        
+        if (targetClass.IsSealed)
+            features.Add("**🔒 Sealed Class**: Prevents inheritance");
+        
+        if (targetClass.IsAbstract)
+            features.Add("**📋 Abstract Class**: Base class for inheritance");
+        
+        if (targetClass.GetMethods().Any(m => m.IsVirtual && !m.IsAbstract))
+            features.Add("**🔄 Virtual Methods**: Supports method overriding");
+        
+        if (targetClass.GetMethods().Any(m => m.IsStatic))
+            features.Add("**⚡ Static Methods**: Utility functionality");
+        
+        return features;
+    }
+
+    private List<string> GetGenericTechnicalHighlights(Type targetClass, DependencyInfo[] allDependencies)
+    {
+        var highlights = new List<string>();
+        
+        highlights.Add($"**📊 Total Dependencies**: {allDependencies.Length} interfaces discovered");
+        
+        var constructorDependencies = GetConstructorDependencies(targetClass);
+        highlights.Add($"**🔗 Constructor Dependencies**: {constructorDependencies.Length} direct dependencies");
+        
+        var publicMethods = targetClass.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName && !m.IsConstructor)
+            .Count();
+        highlights.Add($"**⚙️ Public Methods**: {publicMethods} public methods");
+        
+        var genericInterfaces = allDependencies.Count(d => d.IsGeneric);
+        if (genericInterfaces > 0)
+            highlights.Add($"**🎭 Generic Interfaces**: {genericInterfaces} generic dependencies");
+        
+        highlights.Add($"**🏗️ Namespace**: {targetClass.Namespace}");
+        highlights.Add($"**📦 Assembly**: {targetClass.Assembly.GetName().Name}");
+        
+        return highlights;
+    }
+
+    private Type? FindTypeByName(string typeName, string namespaceName)
+    {
+        try
+        {
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            
+            foreach (var assembly in assemblies)
+            {
+                try
                 {
-                    "Reflection API:",
-                    "├─> typeof(MyClass).GetConstructors()",
-                    "├─> parameterInfo.ParameterType.IsInterface",
-                    "└─> [Analyze type dependencies recursively]",
-                    "",
-                    "File System:",
-                    "├─> Directory.CreateDirectory(\"output/\")",
-                    "└─> File.WriteAllText(\"output/Stubs.cs\", generatedCode)"
+                    var types = assembly.GetTypes();
+                    var exactMatch = types.FirstOrDefault(t => 
+                        t.Name == typeName && 
+                        t.Namespace == namespaceName);
+                    
+                    if (exactMatch != null)
+                        return exactMatch;
+                }
+                catch
+                {
+                    // Continue to next assembly
                 }
             }
-        };
+        }
+        catch
+        {
+            // Handle exceptions
+        }
+        
+        return null;
     }
 
-    private List<string> GetKeyFeatures()
+    private DependencyInfo[] GetConstructorDependencies(Type sourceClassType)
     {
-        return new List<string>
+        var constructors = sourceClassType.GetConstructors();
+        if (!constructors.Any())
+            return Array.Empty<DependencyInfo>();
+        
+        var primaryConstructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
+        var dependencies = new List<DependencyInfo>();
+        
+        foreach (var parameter in primaryConstructor.GetParameters())
         {
-            "**🎯 Service Layer Pattern**: Clear separation of concerns",
-            "**🏭 Factory Pattern**: `DepFinder.Create()` provides zero-config access",
-            "**💉 Dependency Injection**: Constructor injection throughout",
-            "**🎭 Facade Pattern**: Simplified API surface via `DepFinderService`"
-        };
+            var paramType = parameter.ParameterType;
+            if (paramType.IsInterface)
+            {
+                var dependencyInfo = new DependencyInfo
+                {
+                    Name = paramType.Name,
+                    Namespace = paramType.Namespace ?? string.Empty,
+                    TypeName = GetTypeName(paramType),
+                    IsGeneric = paramType.IsGenericType,
+                    GenericArguments = paramType.IsGenericType ? 
+                        paramType.GetGenericArguments().Select(t => t.Name).ToList() : 
+                        new List<string>()
+                };
+                dependencies.Add(dependencyInfo);
+            }
+        }
+        
+        return dependencies.ToArray();
     }
 
-    private List<string> GetTechnicalHighlights()
+    private string GetTypeName(Type type)
     {
-        return new List<string>
-        {
-            "**🔍 Reflection-based Analysis**: Deep type inspection",
-            "**📝 Code Generation**: Dynamic C# stub creation",
-            "**📦 Package Management**: Automated NuGet installation",
-            "**🎯 Zero Configuration**: Works out-of-the-box"
-        };
+        if (!type.IsGenericType)
+            return type.Name;
+
+        var genericTypeName = type.Name.Substring(0, type.Name.IndexOf('`'));
+        var genericArguments = type.GetGenericArguments().Select(t => t.Name);
+        return $"{genericTypeName}<{string.Join(", ", genericArguments)}>";
     }
 
     private string GenerateLayerDiagram(ArchitecturalLayer layer)
@@ -586,7 +564,7 @@ public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
         if (component.Methods.Any())
         {
             diagram.AppendLine($"│  │  📋 Methods:                                                                │ │");
-            foreach (var method in component.Methods.Take(4)) // Limit to 4 methods for space
+            foreach (var method in component.Methods.Take(4))
             {
                 diagram.AppendLine($"│  │  • {method}                                                 │ │");
             }
@@ -596,7 +574,7 @@ public class ArchitecturalAnalyzer : IArchitecturalAnalyzer
         if (component.Dependencies.Any())
         {
             diagram.AppendLine($"│  │  🔗 Dependencies:                                                           │ │");
-            foreach (var dependency in component.Dependencies.Take(3)) // Limit to 3 dependencies for space
+            foreach (var dependency in component.Dependencies.Take(3))
             {
                 diagram.AppendLine($"│  │  • {dependency}                                                      │ │");
             }

@@ -9,27 +9,28 @@ namespace DepFinder.Examples;
 public static class ArchitecturalAnalysisExample
 {
     /// <summary>
-    /// Example method showing how to generate and save an architectural diagram
+    /// Example method showing how to generate and save an architectural diagram for a specific class
     /// </summary>
-    public static async Task GenerateArchitecturalDiagramExampleAsync()
+    /// <param name="targetClass">The class to analyze (e.g., a controller or service)</param>
+    public static async Task GenerateArchitecturalDiagramExampleAsync(Type targetClass)
     {
         try
         {
             // Example 1: Generate architectural diagram as string
-            Console.WriteLine("🏗️ Generating architectural diagram...");
-            var diagram = await DepFinder.GenerateArchitecturalDiagramAsync();
+            Console.WriteLine($"🏗️ Generating architectural diagram for {targetClass.Name}...");
+            var diagram = await DepFinder.GenerateArchitecturalDiagramAsync(targetClass);
             Console.WriteLine("📊 Architectural diagram generated:");
             Console.WriteLine(diagram);
             
             // Example 2: Generate and save architectural diagram to file
             Console.WriteLine("\n📁 Saving architectural diagram to file...");
             var outputPath = Path.Combine(Environment.CurrentDirectory, "output");
-            var savedFilePath = await DepFinder.GenerateAndSaveArchitecturalDiagramAsync(outputPath);
+            var savedFilePath = await DepFinder.GenerateAndSaveArchitecturalDiagramAsync(targetClass, outputPath);
             Console.WriteLine($"✅ Architectural diagram saved to: {savedFilePath}");
             
             // Example 3: Analyze architecture programmatically
             Console.WriteLine("\n🔍 Analyzing architecture programmatically...");
-            var architecturalFlow = await DepFinder.AnalyzeArchitectureAsync();
+            var architecturalFlow = await DepFinder.AnalyzeArchitectureAsync(targetClass);
             
             Console.WriteLine($"📊 Found {architecturalFlow.Layers.Count} architectural layers:");
             foreach (var layer in architecturalFlow.Layers.OrderBy(l => l.Order))
@@ -64,7 +65,8 @@ public static class ArchitecturalAnalysisExample
     /// <summary>
     /// Example method showing how to use the architectural analyzer with DI
     /// </summary>
-    public static async Task UseArchitecturalAnalyzerWithDIAsync()
+    /// <param name="targetClass">The class to analyze</param>
+    public static async Task UseArchitecturalAnalyzerWithDIAsync(Type targetClass)
     {
         try
         {
@@ -72,9 +74,9 @@ public static class ArchitecturalAnalysisExample
             using var service = DepFinder.Create();
             
             // Get the architectural flow
-            var architecturalFlow = await service.AnalyzeArchitectureAsync();
+            var architecturalFlow = await service.AnalyzeArchitectureAsync(targetClass);
             
-            Console.WriteLine("🏗️ Architectural Analysis Results:");
+            Console.WriteLine($"🏗️ Architectural Analysis Results for {targetClass.Name}:");
             Console.WriteLine("═══════════════════════════════════");
             
             // Display layer information
@@ -106,7 +108,7 @@ public static class ArchitecturalAnalysisExample
             
             // Generate and save the full diagram
             var outputPath = Path.Combine(Environment.CurrentDirectory, "architectural-analysis");
-            var diagramPath = await service.GenerateAndSaveArchitecturalDiagramAsync(outputPath);
+            var diagramPath = await service.GenerateAndSaveArchitecturalDiagramAsync(targetClass, outputPath);
             Console.WriteLine($"\n✅ Full architectural diagram saved to: {diagramPath}");
         }
         catch (Exception ex)

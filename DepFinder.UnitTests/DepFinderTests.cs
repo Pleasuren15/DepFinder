@@ -114,6 +114,7 @@ namespace DepFinder.UnitTests
             var currentDirectory = Directory.GetParent(".")!.Parent!.Parent;
             var filePath = await DepFinder.GenerateAndSaveStubAsync(typeof(ClassA), $"{currentDirectory}//Testes");
             await DepFinder.GenerateSutFactoryClassAsync(typeof(ClassA), typeof(ClassA).Name, filePath, $"{currentDirectory}//Testes");
+            await DepFinder.GenerateAndSaveArchitecturalDiagramAsync(typeof(ClassA), currentDirectory.ToString());
         }
     }
 }

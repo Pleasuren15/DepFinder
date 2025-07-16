@@ -137,32 +137,35 @@ public class DepFinderService : IDisposable
     }
 
     /// <summary>
-    /// Analyzes the application architecture and returns a structured representation
+    /// Analyzes the architecture for a specific class/controller and returns a structured representation
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>Complete architectural flow information</returns>
-    public async Task<ArchitecturalFlow> AnalyzeArchitectureAsync()
+    public async Task<ArchitecturalFlow> AnalyzeArchitectureAsync(Type targetClass)
     {
-        return await Task.FromResult(_architecturalAnalyzer.AnalyzeArchitecture());
+        return await Task.FromResult(_architecturalAnalyzer.AnalyzeArchitecture(targetClass));
     }
 
     /// <summary>
-    /// Generates a visual ASCII diagram of the application architecture
+    /// Generates a visual ASCII diagram of the architecture for a specific class/controller
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <returns>ASCII art representation of the architecture</returns>
-    public async Task<string> GenerateArchitecturalDiagramAsync()
+    public async Task<string> GenerateArchitecturalDiagramAsync(Type targetClass)
     {
-        return await Task.FromResult(_architecturalAnalyzer.GenerateArchitecturalDiagram());
+        return await Task.FromResult(_architecturalAnalyzer.GenerateArchitecturalDiagram(targetClass));
     }
 
     /// <summary>
-    /// Generates and saves an architectural diagram to a file
+    /// Generates and saves an architectural diagram to a file for a specific class/controller
     /// </summary>
+    /// <param name="targetClass">The class/controller to analyze</param>
     /// <param name="outputPath">Path where the diagram file should be saved</param>
     /// <returns>Path to the saved diagram file</returns>
-    public async Task<string> GenerateAndSaveArchitecturalDiagramAsync(string outputPath)
+    public async Task<string> GenerateAndSaveArchitecturalDiagramAsync(Type targetClass, string outputPath)
     {
-        var diagram = await GenerateArchitecturalDiagramAsync();
-        var fileName = "ArchitecturalDiagram.md";
+        var diagram = await GenerateArchitecturalDiagramAsync(targetClass);
+        var fileName = $"{targetClass.Name}_ArchitecturalDiagram.md";
         var fullPath = Path.Combine(outputPath, fileName);
         
         await _fileService.WriteFileAsync(fullPath, diagram);
