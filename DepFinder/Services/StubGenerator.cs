@@ -322,6 +322,7 @@ public class StubGenerator : IStubGenerator
             classBuilder.AppendLine($"using {ns};");
         }
         classBuilder.AppendLine($"using {sourceClassType.Namespace};");
+        classBuilder.AppendLine($"using {sourceClassType.Namespace}.Implementations;");
         classBuilder.AppendLine();
 
         // Generate factory class
@@ -332,14 +333,16 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine($"        public static {sourceClassType.Name} CreateSystemUnderTest({actualStubClassName} stubs)");
         classBuilder.AppendLine("        {");
         
-        // Generate constructor parameters
-        classBuilder.Append("            return new ");
-        classBuilder.Append(sourceClassType.Name);
-        classBuilder.Append("(");
+        // Generate concrete object instantiation with constructor parameters
+        classBuilder.AppendLine("            // Create concrete implementations instead of using stubs");
         
         var constructorParams = new List<string>();
         var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var usedVariableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var variableNameMap = new Dictionary<string, string>(); // Maps interface name to variable name
+        var instantiationOrder = new List<(string interfaceName, string propertyName, string variableName, string concreteClassName)>();
         
+        // First pass: collect all dependencies and their info
         foreach (var dependency in constructorDependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -354,9 +357,30 @@ public class StubGenerator : IStubGenerator
             propertyName = EnsureUniquePropertyName(propertyName, usedPropertyNames);
             usedPropertyNames.Add(propertyName);
 
-            constructorParams.Add($"stubs.{propertyName}");
+            // Generate variable name for the concrete implementation
+            var variableName = $"{propertyName.ToLower()}Instance";
+            variableName = EnsureUniquePropertyName(variableName, usedVariableNames);
+            usedVariableNames.Add(variableName);
+
+            // Map interface name to variable name
+            variableNameMap[dependency.Name] = variableName;
+            
+            var concreteClassName = propertyName;
+            instantiationOrder.Add((dependency.Name, propertyName, variableName, concreteClassName));
+            constructorParams.Add(variableName);
+        }
+        
+        // Second pass: generate instantiation code in order
+        foreach (var (interfaceName, propertyName, variableName, concreteClassName) in instantiationOrder)
+        {
+            var constructorArgs = GenerateConstructorArguments(concreteClassName, sourceClassType.Namespace, variableNameMap);
+            classBuilder.AppendLine($"            var {variableName} = new {concreteClassName}({constructorArgs});");
         }
 
+        classBuilder.AppendLine();
+        classBuilder.Append("            return new ");
+        classBuilder.Append(sourceClassType.Name);
+        classBuilder.Append("(");
         classBuilder.Append(string.Join(", ", constructorParams));
         classBuilder.AppendLine(");");
         classBuilder.AppendLine("        }");
@@ -441,5 +465,81 @@ public class StubGenerator : IStubGenerator
         }
 
         return propertyName;
+    }
+
+    private string GenerateConstructorArguments(string concreteClassName, string namespaceName, Dictionary<string, string> variableNameMap)
+    {
+        try
+        {
+            // Try to find the concrete class type in the implementations namespace
+            var implementationsNamespace = $"{namespaceName}.Implementations";
+            var fullClassName = $"{implementationsNamespace}.{concreteClassName}";
+            
+            // Get all loaded assemblies and search for the type
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            Type? concreteType = null;
+            
+            foreach (var assembly in assemblies)
+            {
+                try
+                {
+                    concreteType = assembly.GetType(fullClassName);
+                    if (concreteType != null) break;
+                }
+                catch
+                {
+                    // Continue searching in other assemblies
+                }
+            }
+
+            if (concreteType == null)
+            {
+                return string.Empty; // No constructor arguments needed
+            }
+
+            // Get the primary constructor (the one with the most parameters)
+            var constructors = concreteType.GetConstructors();
+            if (constructors.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var primaryConstructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
+            var parameters = primaryConstructor.GetParameters();
+            
+            if (parameters.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var constructorArgs = new List<string>();
+            
+            foreach (var parameter in parameters)
+            {
+                var paramType = parameter.ParameterType;
+                if (paramType.IsInterface)
+                {
+                    // Try to find matching variable or use stub
+                    var interfaceName = paramType.Name;
+                    
+                    if (variableNameMap.ContainsKey(interfaceName))
+                    {
+                        constructorArgs.Add(variableNameMap[interfaceName]);
+                    }
+                    else
+                    {
+                        // Use stub property
+                        var stubPropertyName = interfaceName.StartsWith("I") ? interfaceName.Substring(1) : interfaceName;
+                        constructorArgs.Add($"stubs.{stubPropertyName}");
+                    }
+                }
+            }
+
+            return string.Join(", ", constructorArgs);
+        }
+        catch
+        {
+            return string.Empty; // Fallback to parameterless constructor
+        }
     }
 }
