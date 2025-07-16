@@ -322,7 +322,6 @@ public class StubGenerator : IStubGenerator
             classBuilder.AppendLine($"using {ns};");
         }
         classBuilder.AppendLine($"using {sourceClassType.Namespace};");
-        classBuilder.AppendLine($"using {sourceClassType.Namespace}.Implementations;");
         classBuilder.AppendLine();
 
         // Generate factory class
@@ -333,15 +332,14 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine($"        public static {sourceClassType.Name} CreateSystemUnderTest({actualStubClassName} stubs)");
         classBuilder.AppendLine("        {");
         
-        // Generate concrete object instantiation with constructor parameters
-        classBuilder.AppendLine("            // Override stubs with concrete implementations");
+        // Generate constructor parameters
+        classBuilder.Append("            return new ");
+        classBuilder.Append(sourceClassType.Name);
+        classBuilder.Append("(");
         
         var constructorParams = new List<string>();
         var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var stubPropertyMap = new Dictionary<string, string>(); // Maps interface name to stub property name
-        var instantiationOrder = new List<(string interfaceName, string propertyName, string concreteClassName)>();
         
-        // First pass: collect all dependencies and their info
         foreach (var dependency in constructorDependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -356,27 +354,9 @@ public class StubGenerator : IStubGenerator
             propertyName = EnsureUniquePropertyName(propertyName, usedPropertyNames);
             usedPropertyNames.Add(propertyName);
 
-            // Map interface name to stub property name
-            stubPropertyMap[dependency.Name] = propertyName;
-            
-            var concreteClassName = propertyName;
-            instantiationOrder.Add((dependency.Name, propertyName, concreteClassName));
             constructorParams.Add($"stubs.{propertyName}");
         }
-        
-        // Second pass: sort dependencies topologically and generate instantiation code in correct order
-        var sortedDependencies = SortDependenciesTopologically(instantiationOrder, sourceClassType.Namespace);
-        
-        foreach (var (interfaceName, propertyName, concreteClassName) in sortedDependencies)
-        {
-            var constructorArgs = GenerateConstructorArgumentsForStubs(concreteClassName, sourceClassType.Namespace, stubPropertyMap);
-            classBuilder.AppendLine($"            stubs.{propertyName} = new {concreteClassName}({constructorArgs});");
-        }
 
-        classBuilder.AppendLine();
-        classBuilder.Append("            return new ");
-        classBuilder.Append(sourceClassType.Name);
-        classBuilder.Append("(");
         classBuilder.Append(string.Join(", ", constructorParams));
         classBuilder.AppendLine(");");
         classBuilder.AppendLine("        }");
@@ -463,193 +443,4 @@ public class StubGenerator : IStubGenerator
         return propertyName;
     }
 
-
-    private List<string> GetConstructorDependencies(string concreteClassName, string namespaceName)
-    {
-        var concreteType = FindConcreteType(concreteClassName, namespaceName);
-        if (concreteType == null)
-        {
-            return new List<string>();
-        }
-
-        var primaryConstructor = GetPrimaryConstructor(concreteType);
-        if (primaryConstructor == null)
-        {
-            return new List<string>();
-        }
-
-        var dependencies = new List<string>();
-        foreach (var parameter in primaryConstructor.GetParameters())
-        {
-            if (parameter.ParameterType.IsInterface)
-            {
-                dependencies.Add(parameter.ParameterType.Name);
-            }
-        }
-
-        return dependencies;
-    }
-
-    private List<(string interfaceName, string propertyName, string concreteClassName)> 
-        SortDependenciesTopologically(List<(string interfaceName, string propertyName, string concreteClassName)> dependencies, string namespaceName)
-    {
-        // Build dependency graph
-        var dependencyGraph = new Dictionary<string, List<string>>();
-        var inDegree = new Dictionary<string, int>();
-        
-        foreach (var (interfaceName, propertyName, concreteClassName) in dependencies)
-        {
-            dependencyGraph[interfaceName] = GetConstructorDependencies(concreteClassName, namespaceName);
-            inDegree[interfaceName] = 0;
-        }
-        
-        // Calculate in-degrees
-        foreach (var (interfaceName, deps) in dependencyGraph)
-        {
-            foreach (var dep in deps)
-            {
-                if (inDegree.ContainsKey(dep))
-                {
-                    inDegree[dep]++;
-                }
-            }
-        }
-        
-        // Topological sort using Kahn's algorithm
-        var queue = new Queue<string>();
-        var sorted = new List<string>();
-        
-        // Start with nodes that have no dependencies
-        foreach (var (interfaceName, degree) in inDegree)
-        {
-            if (degree == 0)
-            {
-                queue.Enqueue(interfaceName);
-            }
-        }
-        
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            sorted.Add(current);
-            
-            // Process dependencies
-            if (dependencyGraph.ContainsKey(current))
-            {
-                foreach (var dep in dependencyGraph[current])
-                {
-                    if (inDegree.ContainsKey(dep))
-                    {
-                        inDegree[dep]--;
-                        if (inDegree[dep] == 0)
-                        {
-                            queue.Enqueue(dep);
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Return dependencies in topological order
-        var result = new List<(string interfaceName, string propertyName, string concreteClassName)>();
-        var dependencyMap = dependencies.ToDictionary(d => d.interfaceName, d => d);
-        
-        foreach (var interfaceName in sorted)
-        {
-            if (dependencyMap.ContainsKey(interfaceName))
-            {
-                result.Add(dependencyMap[interfaceName]);
-            }
-        }
-        
-        return result;
-    }
-
-    private string GenerateConstructorArgumentsForStubs(string concreteClassName, string namespaceName, Dictionary<string, string> stubPropertyMap)
-    {
-        var concreteType = FindConcreteType(concreteClassName, namespaceName);
-        if (concreteType == null)
-        {
-            return string.Empty;
-        }
-
-        var primaryConstructor = GetPrimaryConstructor(concreteType);
-        if (primaryConstructor == null)
-        {
-            return string.Empty;
-        }
-
-        var constructorArgs = new List<string>();
-        foreach (var parameter in primaryConstructor.GetParameters())
-        {
-            if (parameter.ParameterType.IsInterface)
-            {
-                var interfaceName = parameter.ParameterType.Name;
-                
-                if (stubPropertyMap.ContainsKey(interfaceName))
-                {
-                    constructorArgs.Add($"stubs.{stubPropertyMap[interfaceName]}");
-                }
-                else
-                {
-                    // Fallback: use interface name without 'I' prefix
-                    var stubPropertyName = interfaceName.StartsWith("I") ? interfaceName.Substring(1) : interfaceName;
-                    constructorArgs.Add($"stubs.{stubPropertyName}");
-                }
-            }
-        }
-
-        return string.Join(", ", constructorArgs);
-    }
-
-    private Type? FindConcreteType(string concreteClassName, string namespaceName)
-    {
-        try
-        {
-            var implementationsNamespace = $"{namespaceName}.Implementations";
-            var fullClassName = $"{implementationsNamespace}.{concreteClassName}";
-            
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            
-            foreach (var assembly in assemblies)
-            {
-                try
-                {
-                    var concreteType = assembly.GetType(fullClassName);
-                    if (concreteType != null)
-                    {
-                        return concreteType;
-                    }
-                }
-                catch
-                {
-                    // Continue searching in other assemblies
-                }
-            }
-
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private ConstructorInfo? GetPrimaryConstructor(Type type)
-    {
-        try
-        {
-            var constructors = type.GetConstructors();
-            if (constructors.Length == 0)
-            {
-                return null;
-            }
-
-            return constructors.OrderByDescending(c => c.GetParameters().Length).First();
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }
