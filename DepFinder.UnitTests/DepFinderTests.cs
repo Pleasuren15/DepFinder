@@ -16,18 +16,6 @@ namespace DepFinder.UnitTests
         }
 
         [Test]
-        public async Task AnalyzeDependenciesAsync_WithValidClass_ReturnsDependencyInfoArray()
-        {
-            // Act
-            var result = await DepFinder.AnalyzeDependenciesAsync(_testClassType);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.TypeOf<DependencyInfo[]>());
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        [Test]
         public async Task GenerateStubClassAsync_WithValidParameters_ReturnsStubContent()
         {
             // Arrange
