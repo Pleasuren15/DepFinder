@@ -131,7 +131,7 @@ namespace DepFinder.UnitTests
 
             // Create Sut Factory
             var outputDirectory = Directory.GetCurrentDirectory();
-            await DepFinder.GenerateSutFactoryClassAsync(typeof(ClassA), "ClassA", filePath, $"{currentDirectory}//Testes");
+            await DepFinder.GenerateSutFactoryClassAsync(typeof(ClassA), typeof(ClassA).Name, filePath, $"{currentDirectory}//Testes");
         }
     }
 }
