@@ -463,136 +463,31 @@ public class StubGenerator : IStubGenerator
         return propertyName;
     }
 
-    private string GenerateConstructorArguments(string concreteClassName, string namespaceName, Dictionary<string, string> variableNameMap)
-    {
-        try
-        {
-            // Try to find the concrete class type in the implementations namespace
-            var implementationsNamespace = $"{namespaceName}.Implementations";
-            var fullClassName = $"{implementationsNamespace}.{concreteClassName}";
-            
-            // Get all loaded assemblies and search for the type
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            Type? concreteType = null;
-            
-            foreach (var assembly in assemblies)
-            {
-                try
-                {
-                    concreteType = assembly.GetType(fullClassName);
-                    if (concreteType != null) break;
-                }
-                catch
-                {
-                    // Continue searching in other assemblies
-                }
-            }
-
-            if (concreteType == null)
-            {
-                return string.Empty; // No constructor arguments needed
-            }
-
-            // Get the primary constructor (the one with the most parameters)
-            var constructors = concreteType.GetConstructors();
-            if (constructors.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var primaryConstructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
-            var parameters = primaryConstructor.GetParameters();
-            
-            if (parameters.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var constructorArgs = new List<string>();
-            
-            foreach (var parameter in parameters)
-            {
-                var paramType = parameter.ParameterType;
-                if (paramType.IsInterface)
-                {
-                    // Try to find matching variable or use stub
-                    var interfaceName = paramType.Name;
-                    
-                    if (variableNameMap.ContainsKey(interfaceName))
-                    {
-                        constructorArgs.Add(variableNameMap[interfaceName]);
-                    }
-                    else
-                    {
-                        // Use stub property
-                        var stubPropertyName = interfaceName.StartsWith("I") ? interfaceName.Substring(1) : interfaceName;
-                        constructorArgs.Add($"stubs.{stubPropertyName}");
-                    }
-                }
-            }
-
-            return string.Join(", ", constructorArgs);
-        }
-        catch
-        {
-            return string.Empty; // Fallback to parameterless constructor
-        }
-    }
 
     private List<string> GetConstructorDependencies(string concreteClassName, string namespaceName)
     {
-        try
-        {
-            var implementationsNamespace = $"{namespaceName}.Implementations";
-            var fullClassName = $"{implementationsNamespace}.{concreteClassName}";
-            
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            Type? concreteType = null;
-            
-            foreach (var assembly in assemblies)
-            {
-                try
-                {
-                    concreteType = assembly.GetType(fullClassName);
-                    if (concreteType != null) break;
-                }
-                catch
-                {
-                    // Continue searching in other assemblies
-                }
-            }
-
-            if (concreteType == null)
-            {
-                return new List<string>();
-            }
-
-            var constructors = concreteType.GetConstructors();
-            if (constructors.Length == 0)
-            {
-                return new List<string>();
-            }
-
-            var primaryConstructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
-            var parameters = primaryConstructor.GetParameters();
-            
-            var dependencies = new List<string>();
-            
-            foreach (var parameter in parameters)
-            {
-                var paramType = parameter.ParameterType;
-                if (paramType.IsInterface)
-                {
-                    dependencies.Add(paramType.Name);
-                }
-            }
-
-            return dependencies;
-        }
-        catch
+        var concreteType = FindConcreteType(concreteClassName, namespaceName);
+        if (concreteType == null)
         {
             return new List<string>();
         }
+
+        var primaryConstructor = GetPrimaryConstructor(concreteType);
+        if (primaryConstructor == null)
+        {
+            return new List<string>();
+        }
+
+        var dependencies = new List<string>();
+        foreach (var parameter in primaryConstructor.GetParameters())
+        {
+            if (parameter.ParameterType.IsInterface)
+            {
+                dependencies.Add(parameter.ParameterType.Name);
+            }
+        }
+
+        return dependencies;
     }
 
     private List<(string interfaceName, string propertyName, string concreteClassName)> 
@@ -672,22 +567,59 @@ public class StubGenerator : IStubGenerator
 
     private string GenerateConstructorArgumentsForStubs(string concreteClassName, string namespaceName, Dictionary<string, string> stubPropertyMap)
     {
+        var concreteType = FindConcreteType(concreteClassName, namespaceName);
+        if (concreteType == null)
+        {
+            return string.Empty;
+        }
+
+        var primaryConstructor = GetPrimaryConstructor(concreteType);
+        if (primaryConstructor == null)
+        {
+            return string.Empty;
+        }
+
+        var constructorArgs = new List<string>();
+        foreach (var parameter in primaryConstructor.GetParameters())
+        {
+            if (parameter.ParameterType.IsInterface)
+            {
+                var interfaceName = parameter.ParameterType.Name;
+                
+                if (stubPropertyMap.ContainsKey(interfaceName))
+                {
+                    constructorArgs.Add($"stubs.{stubPropertyMap[interfaceName]}");
+                }
+                else
+                {
+                    // Fallback: use interface name without 'I' prefix
+                    var stubPropertyName = interfaceName.StartsWith("I") ? interfaceName.Substring(1) : interfaceName;
+                    constructorArgs.Add($"stubs.{stubPropertyName}");
+                }
+            }
+        }
+
+        return string.Join(", ", constructorArgs);
+    }
+
+    private Type? FindConcreteType(string concreteClassName, string namespaceName)
+    {
         try
         {
-            // Try to find the concrete class type in the implementations namespace
             var implementationsNamespace = $"{namespaceName}.Implementations";
             var fullClassName = $"{implementationsNamespace}.{concreteClassName}";
             
-            // Get all loaded assemblies and search for the type
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            Type? concreteType = null;
             
             foreach (var assembly in assemblies)
             {
                 try
                 {
-                    concreteType = assembly.GetType(fullClassName);
-                    if (concreteType != null) break;
+                    var concreteType = assembly.GetType(fullClassName);
+                    if (concreteType != null)
+                    {
+                        return concreteType;
+                    }
                 }
                 catch
                 {
@@ -695,54 +627,29 @@ public class StubGenerator : IStubGenerator
                 }
             }
 
-            if (concreteType == null)
-            {
-                return string.Empty; // No constructor arguments needed
-            }
-
-            // Get the primary constructor (the one with the most parameters)
-            var constructors = concreteType.GetConstructors();
-            if (constructors.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var primaryConstructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
-            var parameters = primaryConstructor.GetParameters();
-            
-            if (parameters.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var constructorArgs = new List<string>();
-            
-            foreach (var parameter in parameters)
-            {
-                var paramType = parameter.ParameterType;
-                if (paramType.IsInterface)
-                {
-                    // Use stub property
-                    var interfaceName = paramType.Name;
-                    
-                    if (stubPropertyMap.ContainsKey(interfaceName))
-                    {
-                        constructorArgs.Add($"stubs.{stubPropertyMap[interfaceName]}");
-                    }
-                    else
-                    {
-                        // Fallback: use interface name without 'I' prefix
-                        var stubPropertyName = interfaceName.StartsWith("I") ? interfaceName.Substring(1) : interfaceName;
-                        constructorArgs.Add($"stubs.{stubPropertyName}");
-                    }
-                }
-            }
-
-            return string.Join(", ", constructorArgs);
+            return null;
         }
         catch
         {
-            return string.Empty; // Fallback to parameterless constructor
+            return null;
+        }
+    }
+
+    private ConstructorInfo? GetPrimaryConstructor(Type type)
+    {
+        try
+        {
+            var constructors = type.GetConstructors();
+            if (constructors.Length == 0)
+            {
+                return null;
+            }
+
+            return constructors.OrderByDescending(c => c.GetParameters().Length).First();
+        }
+        catch
+        {
+            return null;
         }
     }
 }
