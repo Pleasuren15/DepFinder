@@ -124,13 +124,7 @@ namespace DepFinder.UnitTests
         public async Task GivenAllMethods_WithValidProperteis_ThenShouldCreateStubs()
         {
             var currentDirectory = Directory.GetParent(".")!.Parent!.Parent;
-
-            //var dependencies = await DepFinder.AnalyzeDependenciesAsync(typeof(ClassA));
-            //var stubContent = await DepFinder.GenerateStubClassAsync(typeof(ClassA), "UsersControllerStubs");
             var filePath = await DepFinder.GenerateAndSaveStubAsync(typeof(ClassA), $"{currentDirectory}//Testes");
-
-            // Create Sut Factory
-            var outputDirectory = Directory.GetCurrentDirectory();
             await DepFinder.GenerateSutFactoryClassAsync(typeof(ClassA), typeof(ClassA).Name, filePath, $"{currentDirectory}//Testes");
         }
     }

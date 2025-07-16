@@ -42,7 +42,7 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine("    {");
 
         var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
+
         foreach (var dependency in dependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -85,7 +85,7 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine("    {");
 
         var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
+
         foreach (var dependency in classInfo.Dependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -154,7 +154,7 @@ public class StubGenerator : IStubGenerator
         }
 
         var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
+
         foreach (var dependency in dependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -199,14 +199,14 @@ public class StubGenerator : IStubGenerator
         try
         {
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            
+
             foreach (var assembly in assemblies)
             {
                 try
                 {
                     // Find the type in the assembly
-                    var type = assembly.GetTypes().FirstOrDefault(t => 
-                        t.Name == dependency.Name && 
+                    var type = assembly.GetTypes().FirstOrDefault(t =>
+                        t.Name == dependency.Name &&
                         t.Namespace == dependency.Namespace);
 
                     if (type != null)
@@ -217,14 +217,14 @@ public class StubGenerator : IStubGenerator
                             continue;
 
                         // Check if it's in a packages or .nuget folder (common NuGet locations)
-                        if (assemblyLocation.Contains("packages") || 
-                            assemblyLocation.Contains(".nuget") || 
+                        if (assemblyLocation.Contains("packages") ||
+                            assemblyLocation.Contains(".nuget") ||
                             assemblyLocation.Contains("nuget"))
                         {
                             var packageName = await GuessPackageNameAsync(assembly, dependency);
                             if (!string.IsNullOrEmpty(packageName))
                             {
-                                var version = await GetLatestVersionAsync(packageName);
+                                var version = GetLatestVersionAsync(packageName);
                                 return (packageName, version);
                             }
                         }
@@ -249,7 +249,7 @@ public class StubGenerator : IStubGenerator
         try
         {
             var assemblyName = assembly.GetName().Name;
-            
+
             // Common NuGet package name patterns
             var commonPackageNames = new[]
             {
@@ -261,7 +261,7 @@ public class StubGenerator : IStubGenerator
             foreach (var packageName in commonPackageNames.Where(p => !string.IsNullOrEmpty(p)))
             {
                 // Check if this looks like a known NuGet package
-                if (await IsLikelyNuGetPackageAsync(packageName))
+                if (IsLikelyNuGetPackageAsync(packageName))
                 {
                     return packageName;
                 }
@@ -275,7 +275,7 @@ public class StubGenerator : IStubGenerator
         return string.Empty;
     }
 
-    private async Task<bool> IsLikelyNuGetPackageAsync(string packageName)
+    private bool IsLikelyNuGetPackageAsync(string packageName)
     {
         // Simple heuristics to identify likely NuGet packages
         var knownNuGetPrefixes = new[]
@@ -288,12 +288,7 @@ public class StubGenerator : IStubGenerator
         return knownNuGetPrefixes.Any(prefix => packageName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task<string> GetLatestVersionAsync(string packageName)
-    {
-        // For now, return a default version. In a real implementation,
-        // you could query NuGet API to get the latest version
-        return "latest";
-    }
+    private string GetLatestVersionAsync(string packageName) => "latest";
 
     public string GenerateSutFactoryClass(Type sourceClassType, string stubClassName, string stubFilePath)
     {
@@ -308,7 +303,7 @@ public class StubGenerator : IStubGenerator
 
         // Extract class name from file path
         var actualStubClassName = ExtractClassNameFromFilePath(stubFilePath);
-        
+
         // Get only the constructor dependencies instead of all recursive dependencies
         var constructorDependencies = GetConstructorDependencies(sourceClassType);
         var namespaces = constructorDependencies.Select(d => d.Namespace).Where(ns => !string.IsNullOrEmpty(ns)).Distinct().ToList();
@@ -331,15 +326,15 @@ public class StubGenerator : IStubGenerator
         classBuilder.AppendLine("    {");
         classBuilder.AppendLine($"        public static {sourceClassType.Name} CreateSystemUnderTest({actualStubClassName} stubs)");
         classBuilder.AppendLine("        {");
-        
+
         // Generate constructor parameters
         classBuilder.Append("            return new ");
         classBuilder.Append(sourceClassType.Name);
         classBuilder.Append("(");
-        
+
         var constructorParams = new List<string>();
         var usedPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
+
         foreach (var dependency in constructorDependencies)
         {
             var propertyName = dependency.Name.StartsWith("I") ? dependency.Name.Substring(1) : dependency.Name;
@@ -372,14 +367,14 @@ public class StubGenerator : IStubGenerator
         {
             // Read the file content to extract the class name
             var fileContent = File.ReadAllText(filePath);
-            
+
             // Use regex to find the class name
             var classNameMatch = System.Text.RegularExpressions.Regex.Match(fileContent, @"public\s+class\s+(\w+)");
             if (classNameMatch.Success)
             {
                 return classNameMatch.Groups[1].Value;
             }
-            
+
             // Fallback: use filename without extension
             return Path.GetFileNameWithoutExtension(filePath);
         }
@@ -394,9 +389,9 @@ public class StubGenerator : IStubGenerator
     {
         var constructors = sourceClassType.GetConstructors();
         var primaryConstructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
-        
+
         var dependencies = new List<DependencyInfo>();
-        
+
         foreach (var parameter in primaryConstructor.GetParameters())
         {
             var paramType = parameter.ParameterType;
@@ -408,14 +403,14 @@ public class StubGenerator : IStubGenerator
                     Namespace = paramType.Namespace ?? string.Empty,
                     TypeName = GetTypeName(paramType),
                     IsGeneric = paramType.IsGenericType,
-                    GenericArguments = paramType.IsGenericType ? 
-                        paramType.GetGenericArguments().Select(t => t.Name).ToList() : 
+                    GenericArguments = paramType.IsGenericType ?
+                        paramType.GetGenericArguments().Select(t => t.Name).ToList() :
                         new List<string>()
                 };
                 dependencies.Add(dependencyInfo);
             }
         }
-        
+
         return dependencies.ToArray();
     }
 
