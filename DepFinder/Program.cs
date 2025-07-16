@@ -11,6 +11,7 @@ builder.Services.AddScoped<IDependencyAnalyzer, DependencyAnalyzer>();
 builder.Services.AddScoped<IStubGenerator, StubGenerator>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IPackageManager, PackageManager>();
+builder.Services.AddScoped<IArchitecturalAnalyzer, ArchitecturalAnalyzer>();
 builder.Services.AddScoped<DependencyAnalysisService>();
 builder.Services.AddScoped<PackageInstallationService>();
 builder.Services.AddScoped<DepFinderService>();
@@ -28,6 +29,7 @@ public class DepFinderService : IDisposable
     private readonly IPackageManager _packageManager;
     private readonly DependencyAnalysisService _dependencyAnalysisService;
     private readonly PackageInstallationService _packageInstallationService;
+    private readonly IArchitecturalAnalyzer _architecturalAnalyzer;
     private readonly IServiceProvider? _serviceProvider;
 
     internal DepFinderService(IServiceProvider serviceProvider)
@@ -39,6 +41,7 @@ public class DepFinderService : IDisposable
         _packageManager = serviceProvider.GetRequiredService<IPackageManager>();
         _dependencyAnalysisService = serviceProvider.GetRequiredService<DependencyAnalysisService>();
         _packageInstallationService = serviceProvider.GetRequiredService<PackageInstallationService>();
+        _architecturalAnalyzer = serviceProvider.GetRequiredService<IArchitecturalAnalyzer>();
     }
 
     /// <summary>
@@ -131,6 +134,40 @@ public class DepFinderService : IDisposable
         var factoryClassName = $"{sourceClassType.Name}SutFactory";
         await _fileService.WriteClassToFolderAsync(factoryContent, factoryClassName, outputDirectory);
         return Path.Combine(outputDirectory, $"{factoryClassName}.cs");
+    }
+
+    /// <summary>
+    /// Analyzes the application architecture and returns a structured representation
+    /// </summary>
+    /// <returns>Complete architectural flow information</returns>
+    public async Task<ArchitecturalFlow> AnalyzeArchitectureAsync()
+    {
+        return await Task.FromResult(_architecturalAnalyzer.AnalyzeArchitecture());
+    }
+
+    /// <summary>
+    /// Generates a visual ASCII diagram of the application architecture
+    /// </summary>
+    /// <returns>ASCII art representation of the architecture</returns>
+    public async Task<string> GenerateArchitecturalDiagramAsync()
+    {
+        return await Task.FromResult(_architecturalAnalyzer.GenerateArchitecturalDiagram());
+    }
+
+    /// <summary>
+    /// Generates and saves an architectural diagram to a file
+    /// </summary>
+    /// <param name="outputPath">Path where the diagram file should be saved</param>
+    /// <returns>Path to the saved diagram file</returns>
+    public async Task<string> GenerateAndSaveArchitecturalDiagramAsync(string outputPath)
+    {
+        var diagram = await GenerateArchitecturalDiagramAsync();
+        var fileName = "ArchitecturalDiagram.md";
+        var fullPath = Path.Combine(outputPath, fileName);
+        
+        await _fileService.WriteFileAsync(fullPath, diagram);
+        
+        return fullPath;
     }
 
     public void Dispose()

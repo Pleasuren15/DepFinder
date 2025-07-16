@@ -1,7 +1,6 @@
 using DepFinder.Services;
 using DepFinder.Entities;
 using DepFinder.Interfaces;
-using DepFinder.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DepFinder;
@@ -61,6 +60,37 @@ public static class DepFinder
         using var service = Create();
         return await service.GenerateSutFactoryClassAsync(sourceClassType, stubClassName, stubFilePath, outputDirectory);
     }
+
+    /// <summary>
+    /// Analyzes the application architecture and returns a structured representation
+    /// </summary>
+    /// <returns>Complete architectural flow information</returns>
+    public static async Task<ArchitecturalFlow> AnalyzeArchitectureAsync()
+    {
+        using var service = Create();
+        return await service.AnalyzeArchitectureAsync();
+    }
+
+    /// <summary>
+    /// Generates a visual ASCII diagram of the application architecture
+    /// </summary>
+    /// <returns>ASCII art representation of the architecture</returns>
+    public static async Task<string> GenerateArchitecturalDiagramAsync()
+    {
+        using var service = Create();
+        return await service.GenerateArchitecturalDiagramAsync();
+    }
+
+    /// <summary>
+    /// Generates and saves an architectural diagram to a file
+    /// </summary>
+    /// <param name="outputPath">Path where the diagram file should be saved</param>
+    /// <returns>Path to the saved diagram file</returns>
+    public static async Task<string> GenerateAndSaveArchitecturalDiagramAsync(string outputPath)
+    {
+        using var service = Create();
+        return await service.GenerateAndSaveArchitecturalDiagramAsync(outputPath);
+    }
 }
 
 /// <summary>
@@ -79,6 +109,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStubGenerator, StubGenerator>();
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IPackageManager, PackageManager>();
+        services.AddScoped<IArchitecturalAnalyzer, ArchitecturalAnalyzer>();
         services.AddScoped<DependencyAnalysisService>();
         services.AddScoped<PackageInstallationService>();
         services.AddScoped<DepFinderService>();

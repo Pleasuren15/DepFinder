@@ -40,4 +40,22 @@ public class FileService : IFileService
 
         return await File.ReadAllTextAsync(filePath);
     }
+
+    public async Task WriteFileAsync(string filePath, string content)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (content == null)
+            throw new ArgumentNullException(nameof(content));
+
+        var directoryPath = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+        }
+
+        await File.WriteAllTextAsync(filePath, content);
+        Console.WriteLine($"File written to: {filePath}");
+    }
 }
